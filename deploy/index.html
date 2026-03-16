@@ -9,6 +9,8 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Rethink+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+  <script src="https://unpkg.com/docx@9.5.0/build/index.umd.js"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     :root { --accent: #F92672; --bg: #000000; --surface: #111111; --border: #222222; --border-light: #333333; --text: #ffffff; --text-muted: #999999; --text-dim: #666666; }
@@ -198,6 +200,7 @@
           </div>
 
           <div class="dl-row">
+            <button class="dl-btn primary" onclick="downloadDocx()">Download Word Doc (.docx)</button>
             <button class="dl-btn primary" onclick="downloadZip()">Download ZIP (Split Files)</button>
             <button class="dl-btn secondary" onclick="downloadMd()">Download Markdown</button>
             <button class="dl-btn secondary" onclick="downloadTxt()">Download TXT</button>
@@ -350,6 +353,104 @@
       a.download = slugify(currentBusinessName) + '-website-content.zip';
       a.click();
       URL.revokeObjectURL(url);
+    }
+
+    async function downloadDocx() {
+      var D = window.docx;
+      var lines = generatedContent.split('\n');
+      var children = [];
+
+      lines.forEach(function(line) {
+        var trimmed = line.trim();
+        if (!trimmed) return;
+
+        // Headings
+        if (trimmed.startsWith('#### ')) {
+          children.push(new D.Paragraph({ text: trimmed.replace(/^####\s*/, ''), heading: D.HeadingLevel.HEADING_4 }));
+        } else if (trimmed.startsWith('### ')) {
+          children.push(new D.Paragraph({ text: trimmed.replace(/^###\s*/, ''), heading: D.HeadingLevel.HEADING_3 }));
+        } else if (trimmed.startsWith('## ')) {
+          children.push(new D.Paragraph({ text: trimmed.replace(/^##\s*/, ''), heading: D.HeadingLevel.HEADING_2 }));
+        } else if (trimmed.startsWith('# ')) {
+          children.push(new D.Paragraph({ text: trimmed.replace(/^#\s*/, ''), heading: D.HeadingLevel.HEADING_1 }));
+        }
+        // Horizontal rules / section dividers
+        else if (/^---+$/.test(trimmed) || /^===.*===$/.test(trimmed)) {
+          children.push(new D.Paragraph({
+            children: [],
+            border: { bottom: { color: 'F92672', space: 1, style: D.BorderStyle.SINGLE, size: 6 } },
+            spacing: { before: 400, after: 400 }
+          }));
+        }
+        // Bullet lists
+        else if (trimmed.startsWith('- ')) {
+          var bulletText = trimmed.replace(/^-\s*/, '');
+          children.push(new D.Paragraph({
+            children: parseInlineFormatting(D, bulletText),
+            bullet: { level: 0 }
+          }));
+        }
+        // Numbered lists
+        else if (/^\d+\.\s/.test(trimmed)) {
+          var numText = trimmed.replace(/^\d+\.\s*/, '');
+          children.push(new D.Paragraph({
+            children: parseInlineFormatting(D, numText),
+            numbering: { reference: 'default-numbering', level: 0 }
+          }));
+        }
+        // Code blocks (simplified - treat as plain text)
+        else if (trimmed.startsWith('```') || trimmed === '```') {
+          // skip code fences
+        }
+        // Regular paragraphs
+        else {
+          children.push(new D.Paragraph({
+            children: parseInlineFormatting(D, trimmed),
+            spacing: { after: 200 }
+          }));
+        }
+      });
+
+      var doc = new D.Document({
+        numbering: {
+          config: [{
+            reference: 'default-numbering',
+            levels: [{
+              level: 0,
+              format: D.LevelFormat.DECIMAL,
+              text: '%1.',
+              alignment: D.AlignmentType.START
+            }]
+          }]
+        },
+        sections: [{
+          properties: {
+            page: {
+              margin: { top: 1440, right: 1440, bottom: 1440, left: 1440 }
+            }
+          },
+          children: children
+        }]
+      });
+
+      var blob = await D.Packer.toBlob(doc);
+      saveAs(blob, slugify(currentBusinessName) + '-website-content.docx');
+    }
+
+    function parseInlineFormatting(D, text) {
+      var runs = [];
+      var parts = text.split(/(\*\*[^*]+\*\*|\*[^*]+\*)/g);
+      parts.forEach(function(part) {
+        if (!part) return;
+        if (part.startsWith('**') && part.endsWith('**')) {
+          runs.push(new D.TextRun({ text: part.slice(2, -2), bold: true }));
+        } else if (part.startsWith('*') && part.endsWith('*')) {
+          runs.push(new D.TextRun({ text: part.slice(1, -1), italics: true }));
+        } else {
+          runs.push(new D.TextRun({ text: part }));
+        }
+      });
+      return runs;
     }
 
     function copyContent() {

@@ -1,0 +1,33 @@
+Options -Indexes
+
+# Allow all static files to be served
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+
+  # Allow _next directory
+  RewriteRule ^_next/(.*)$ _next/$1 [L]
+
+  # Allow api directory
+  RewriteRule ^api/(.*)$ api/$1 [L]
+
+  # SPA fallback - serve index.html for non-file routes
+  RewriteCond %{REQUEST_FILENAME} !-f
+  RewriteCond %{REQUEST_FILENAME} !-d
+  RewriteRule ^ /index.html [L]
+</IfModule>
+
+# Correct MIME types
+<IfModule mod_mime.c>
+  AddType application/javascript .js
+  AddType text/css .css
+  AddType font/woff2 .woff2
+  AddType application/json .json
+</IfModule>
+
+# Cache static assets
+<IfModule mod_expires.c>
+  ExpiresActive On
+  ExpiresByType application/javascript "access plus 1 year"
+  ExpiresByType text/css "access plus 1 year"
+  ExpiresByType font/woff2 "access plus 1 year"
+</IfModule>

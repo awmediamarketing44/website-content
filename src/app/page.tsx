@@ -19,7 +19,7 @@ export default function Home() {
     setFormData(data);
 
     try {
-      const res = await fetch("/api/generate", {
+      const res = await fetch("/api/generate.php", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),

@@ -31,8 +31,30 @@ if (!$input || empty($input['businessName']) || empty($input['industry']) || emp
     exit;
 }
 
-$contentType = $input['contentType'] ?? 'full';
-$pages = $contentType === 'landing' ? 'Landing Page' : 'Home, About, Services, Contact';
+$contentType = $input['contentType'] ?? 'medium';
+
+// Define pages based on package
+switch ($contentType) {
+    case 'landing':
+        $pages = 'Landing Page (single high-conversion page with hero, benefits, social proof, FAQ, and CTA sections)';
+        $maxTokens = 4000;
+        break;
+    case 'small':
+        $pages = 'Home, About, Services, Contact, FAQ, Testimonials (6 pages)';
+        $maxTokens = 8000;
+        break;
+    case 'medium':
+        $pages = 'Home, About Us, Services (main overview), individual Service pages (one for each service listed), Contact, FAQ, Testimonials, Blog/Resources landing page, Privacy Policy, Terms of Service (up to 15 pages)';
+        $maxTokens = 16000;
+        break;
+    case 'large':
+        $pages = 'Home, About Us, Our Team/Staff, Our Story/History, Services (main overview), individual Service pages (one for EACH service listed), Case Studies/Portfolio, Contact, FAQ, Testimonials/Reviews, Blog/Resources landing page, 3 sample blog posts targeting local SEO, Careers, Areas We Serve (location pages), Privacy Policy, Terms of Service, Sitemap guide (15+ pages)';
+        $maxTokens = 32000;
+        break;
+    default:
+        $pages = 'Home, About, Services, Contact';
+        $maxTokens = 8000;
+}
 
 $prompt = "You are an expert website copywriter and local SEO specialist. Generate professional, conversion-focused website copy for the following business.
 
@@ -45,12 +67,14 @@ BUSINESS DETAILS:
 - Tone: {$input['tone']}
 - Unique Selling Points: {$input['uniqueSellingPoints']}
 
+PACKAGE: {$contentType}
 GENERATE CONTENT FOR THESE PAGES: {$pages}
 
 For each page, provide:
 1. A suggested page title (SEO-optimised with local keywords)
 2. Meta description (under 160 characters, includes location + primary keyword)
 3. The full page copy with clear sections, headings (H1, H2, H3), and calls-to-action
+4. Suggested internal links to other pages on the site
 
 COPY GUIDELINES:
 - Write for humans first, search engines second
@@ -58,8 +82,10 @@ COPY GUIDELINES:
 - Use power words and emotional triggers
 - Every section should guide the visitor toward taking action
 - Include placeholder text like [PHONE NUMBER] or [EMAIL] where contact details would go
-- For Services page: create a compelling description for each service mentioned
+- For Services pages: create a compelling, detailed description for each service
 - For Contact page: include a compelling reason to get in touch
+- For individual service pages: write unique, detailed content (not just a rehash of the overview)
+- Write COMPLETE content for every page listed — do not skip or abbreviate any pages
 
 After ALL page content, provide a dedicated LOCAL SEO TIPS section with:
 1. **Google Business Profile** — specific optimisation tips for their industry
@@ -75,7 +101,7 @@ Format the entire response in clean Markdown. Use --- to separate each page sect
 
 $payload = json_encode([
     'model' => 'claude-sonnet-4-20250514',
-    'max_tokens' => 8000,
+    'max_tokens' => $maxTokens,
     'messages' => [
         ['role' => 'user', 'content' => $prompt]
     ]
@@ -86,7 +112,7 @@ curl_setopt_array($ch, [
     CURLOPT_POST => true,
     CURLOPT_POSTFIELDS => $payload,
     CURLOPT_RETURNTRANSFER => true,
-    CURLOPT_TIMEOUT => 120,
+    CURLOPT_TIMEOUT => 300,
     CURLOPT_HTTPHEADER => [
         'Content-Type: application/json',
         'x-api-key: ' . $apiKey,
